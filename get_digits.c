@@ -193,7 +193,7 @@ int load_data(char* path){
      */
 
     // Cargar las prediciones que idealmente obtendremos (las soluciones) digits.csv
-    digits = malloc(data_nrows*sizeof(double));
+    digits = malloc(data_nrows * sizeof(double));
     sprintf(str, "%sdigits.csv", path);
     read_vector(digits, str, data_nrows);
 
@@ -258,41 +258,6 @@ int unload_data(){
     return 0;
 }
 
-//int perform_multiplications(void* arg) {
-//
-//    /*
-//     * Dado el apuntador a un índice de iteración, esta función lleva a cabo el proceso de multiplicación, suma, y aplicación de ReLU
-//     * al intervalo de filas de la matriz de datos que le corresponda, y escribirá el resultado en un fichero
-//     */
-//
-//    double **res1 = malloc(rows_per_div * sizeof(*res1));
-//
-//
-//    int param = *(int *)arg * rows_per_div;
-//    matmul(data, mat1, res1, -1, -1, data_ncols, matrices_columns[0]);
-//    add_vector(res1, vec1, rows_per_div, matrices_columns[0]);
-//    relu(res1, rows_per_div, matrices_columns[0]);
-//    
-//    //TODO (hacer el resto de multiplicaciones, sumas, y ReLU
-//    
-//    for (int pred = 0; pred < rows_per_div; pred++) {
-//        if (predictions[pred] == digits[start + pred])
-//            aciertos += 1;
-//    }
-//    printf("Accuracy de la parte %d: %f\n", *(int *)arg, (float)aciertos / (end - start));
-//    
-//    //TODO (escribir en fichero)
-//
-//    return 0;
-//}
-
-
-
-int print(void* arg){
-    printf("Hola, soy %d\n", *(int *)arg);
-    sleep(10);
-}
-
 double** reservar_matriz_nxm (double** mat, int n, int m)
 {
     /*
@@ -305,35 +270,15 @@ double** reservar_matriz_nxm (double** mat, int n, int m)
     return mat;
 }
 
-int main(int argc, char* argv[]){
+
+int perform_multiplications(void* arg) {
+
     /*
-     * El programa recibe un único argumento, la cantidad de procesos que se emplearán en la paralelización.
-     * Por ejemplo, parallel 3 tendrá que dividir la matriz en tres, y lanzar tres procesos paralelos. Cada proceso, deberá
-     * procesar un tercio de la matriz de datos
+     * Dado el apuntador a un índice de iteración, esta función lleva a cabo el proceso de multiplicación, suma, y aplicación de ReLU
+     * al intervalo de filas de la matriz de datos que le corresponda, y escribirá el resultado en un fichero
      */
 
-    if (argc!=2){
-        printf("El programa debe tener un único argumento\n");
-        exit(1);
-    }
-
-    // TODO
-    // Para poder cargar los archivos, se necesita el numero de acad que vamos a usar
-    //printf("Por favor, introduce el numero de acad de los archivos a cargar: ");
-    //scanf("%d", &n_acad);
-
-    // Cargar todos los .csv que vamos a utilizar
-    str = (char*) malloc( sizeof(char) * (strlen(my_path) + 20)); // Asignamos suficiente memoria para que quepa my_path + "nombre del archivo"
-    data_nrows = 1000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
-    load_data(my_path);
-
-    printf("\nEMPIEZAN LOS CALCULOS\n");
-
-    /*
-        Nota: las multiplicaciones matriciales no se pueden hacer con solo 2 variables, se necesita una variable 
-              resultado en la que guardar el resultado o sale todo 0
-        Nota: Para reservar una matriz hay que reservar las filas y luego, dentro de las filas, reservar las columnas
-    */
+    //     int param = *(int *)arg * rows_per_div; // ??
 
     double** res1 = reservar_matriz_nxm(res1, data_nrows, matrices_columns[0]);
     matmul(data, mat1, res1, 0, data_nrows, matrices_rows[0], vector_rows[0]);
@@ -357,7 +302,79 @@ int main(int argc, char* argv[]){
     argmax(res4, data_nrows, matrices_columns[3], resul);
     
     printf("\nRESULTADOS FINALES\n");
-    for (int i = 0; i < data_nrows; i++) printf("%d\n", resul[i]);
+
+    int start = 0; // provisional, cambiar para multithreading
+    int aciertos = 0;
+
+    int misstreak = 0;
+
+    // Calcular tasa de aciertos
+    for (int pred = 0; pred < data_nrows; pred++) {
+        //printf("pred = %d, found = %d, expected = %f\n", pred, resul[pred], digits[pred]);
+
+        if ((double) resul[pred] == digits[start + pred])
+        {
+            aciertos += 1;
+        //    if (misstreak != 0) printf("missed at %d, misstreak %d\n", pred, misstreak);
+            misstreak = 0;
+        }
+        //else if (misstreak != 0)
+        //{
+        //    misstreak++;
+        //}
+        //else
+        //{
+        //    printf("miss, found %d expected %f index %d\n", resul[pred], digits[pred], pred + 1);
+        //    misstreak++;
+        //}
+    }
+    printf("Accuracy de la parte %d: %f\n", data_nrows, (float)aciertos / (data_nrows - start)); // Provisional, modificar para multithreading
+    
+    //TODO (escribir en fichero)
+
+    return 0;
+}
+
+
+
+int print(void* arg){
+    printf("Hola, soy %d\n", *(int *)arg);
+    sleep(10);
+}
+
+
+
+int main(int argc, char* argv[]){
+    /*
+     * El programa recibe un único argumento, la cantidad de procesos que se emplearán en la paralelización.
+     * Por ejemplo, parallel 3 tendrá que dividir la matriz en tres, y lanzar tres procesos paralelos. Cada proceso, deberá
+     * procesar un tercio de la matriz de datos
+     */
+
+    if (argc!=2){
+        printf("El programa debe tener un único argumento\n");
+        exit(1);
+    }
+
+    // TODO
+    // Para poder cargar los archivos, se necesita el numero de acad que vamos a usar
+    //printf("Por favor, introduce el numero de acad de los archivos a cargar: ");
+    //scanf("%d", &n_acad);
+
+    // Cargar todos los .csv que vamos a utilizar
+    str = (char*) malloc( sizeof(char) * (strlen(my_path) + 20)); // Asignamos suficiente memoria para que quepa my_path + "nombre del archivo"
+    data_nrows = 800;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
+    load_data(my_path);
+
+    printf("\nEMPIEZAN LOS CALCULOS\n");
+    perform_multiplications(1);
+    /*
+        Nota: las multiplicaciones matriciales no se pueden hacer con solo 2 variables, se necesita una variable 
+              resultado en la que guardar el resultado o sale todo 0
+        Nota: Para reservar una matriz hay que reservar las filas y luego, dentro de las filas, reservar las columnas
+    */
+
+
 
     /////// PROVISIONAL
     return 0;
