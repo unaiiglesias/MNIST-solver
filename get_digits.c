@@ -295,6 +295,11 @@ int print(void* arg){
 
 double** reservar_matriz_nxm (double** mat, int n, int m)
 {
+    /*
+        Dado un double** donde se pretende crear la matriz y sus dimensiones nxm (filas x columnas)
+        reserva (malloc) suficiente espacio como para llenarla de doubles
+    */
+
     mat = malloc(n * sizeof(double));
     for (int i = 0; i < n; i++) mat[i] = malloc(m * sizeof(double));
     return mat;
