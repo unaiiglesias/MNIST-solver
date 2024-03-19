@@ -293,6 +293,13 @@ int print(void* arg){
     sleep(10);
 }
 
+double** reservar_matriz_nxm (double** mat, int n, int m)
+{
+    mat = malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++) mat[i] = malloc(m * sizeof(double));
+    return mat;
+}
+
 int main(int argc, char* argv[]){
     /*
      * El programa recibe un único argumento, la cantidad de procesos que se emplearán en la paralelización.
@@ -314,6 +321,38 @@ int main(int argc, char* argv[]){
     str = (char*) malloc( sizeof(char) * (strlen(my_path) + 20)); // Asignamos suficiente memoria para que quepa my_path + "nombre del archivo"
     data_nrows = 1000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
     load_data(my_path);
+
+    printf("\nEMPIEZAN LOS CALCULOS\n");
+
+    /*
+        Nota: las multiplicaciones matriciales no se pueden hacer con solo 2 variables, se necesita una variable 
+              resultado en la que guardar el resultado o sale todo 0
+        Nota: Para reservar una matriz hay que reservar las filas y luego, dentro de las filas, reservar las columnas
+    */
+
+    double** res1 = reservar_matriz_nxm(res1, data_nrows, matrices_columns[0]);
+    matmul(data, mat1, res1, 0, data_nrows, matrices_rows[0], vector_rows[0]);
+    add_vector(res1, vec1, data_nrows, vector_rows[0]);
+    relu(res1, data_nrows, matrices_columns[0]);
+
+    double** res2 = reservar_matriz_nxm(res2, data_nrows, matrices_columns[1]);
+    matmul(res1, mat2, res2, 0, data_nrows, matrices_rows[1], vector_rows[1]);
+    add_vector(res2, vec2, data_nrows, vector_rows[1]);
+    relu(res2, data_nrows, matrices_columns[1]);
+
+    double** res3 = reservar_matriz_nxm(res3, data_nrows, matrices_columns[2]);
+    matmul(res2, mat3, res3, 0, data_nrows, matrices_rows[2], vector_rows[2]);
+    add_vector(res3, vec3, data_nrows, vector_rows[2]);
+    relu(res3, data_nrows, matrices_columns[2]);
+
+    double** res4 = reservar_matriz_nxm(res4, data_nrows, matrices_columns[3]);
+    matmul(res3, mat4, res4, 0, data_nrows, matrices_rows[3], vector_rows[3]);
+    add_vector(res4, vec4, data_nrows, vector_rows[3]);
+    int* resul = (int*) malloc(data_nrows * sizeof(int));
+    argmax(res4, data_nrows, matrices_columns[3], resul);
+    
+    printf("\nRESULTADOS FINALES\n");
+    for (int i = 0; i < data_nrows; i++) printf("%d\n", resul[i]);
 
     /////// PROVISIONAL
     return 0;
