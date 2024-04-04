@@ -10,7 +10,8 @@
 double **data;
 int data_nrows;
 int data_ncols = 784;
-char *my_path = "/home/unai-kubuntu/Desktop/IRCSO/ejercicios/MNIST/parameters/";  // vosotros tendréis que poner vuestro path
+char *my_path = "/home/dorron/Programas/IRCSO/Datos/";  // vosotros tendréis que poner vuestro path
+char* pathResultados = "/home/dorron/Programas/IRCSO/Resultados/";
 char* n_acad = "11"; // TODO 
 
 int seed = 0;
@@ -83,7 +84,7 @@ int read_vector(double* vect, char* file, int nrows) {
         fgets(buffer, 2048, fstream);
 
         aux = strtod(buffer, NULL);
-        printf("Buffer: %s, %f", buffer, aux);
+        //printf("Buffer: %s, %f", buffer, aux);
         vect[row] = aux;
     }
     fclose(fstream);
@@ -193,7 +194,7 @@ int load_data(char* path){
      */
 
     // Cargar las prediciones que idealmente obtendremos (las soluciones) digits.csv
-    digits = malloc(data_nrows*sizeof(double));
+    digits = malloc(data_nrows * sizeof(double));
     sprintf(str, "%sdigits.csv", path);
     read_vector(digits, str, data_nrows);
 
@@ -207,7 +208,7 @@ int load_data(char* path){
     read_matrix(data, str, data_nrows, data_ncols, 1);
 
     // mostramos una submatrix 20x40 para comprobar (el offset de 70 porque a la izaquierda solo hay 0s)
-    print_matrix(data, 20, 40, 0, 70);
+    //print_matrix(data, 20, 40, 0, 70);
 
 
     // Cargar weights (weights[0, 1, 2, 3]_[Numero acad].csv)
@@ -238,13 +239,13 @@ int load_data(char* path){
     read_vector(vec1, str, vector_rows[0]);
 
     sprintf(str, "%sbiases1_%s.csv", path, n_acad);
-    read_vector(vec1, str, vector_rows[1]);
+    read_vector(vec2, str, vector_rows[1]);
 
     sprintf(str, "%sbiases2_%s.csv", path, n_acad);
-    read_vector(vec1, str, vector_rows[2]);
+    read_vector(vec3, str, vector_rows[2]);
 
     sprintf(str, "%sbiases3_%s.csv", path, n_acad);
-    read_vector(vec1, str, vector_rows[3]);
+    read_vector(vec4, str, vector_rows[3]);
 
     return 0;
 }
@@ -258,33 +259,95 @@ int unload_data(){
     return 0;
 }
 
-//int perform_multiplications(void* arg) {
-//
-//    /*
-//     * Dado el apuntador a un índice de iteración, esta función lleva a cabo el proceso de multiplicación, suma, y aplicación de ReLU
-//     * al intervalo de filas de la matriz de datos que le corresponda, y escribirá el resultado en un fichero
-//     */
-//
-//    double **res1 = malloc(rows_per_div * sizeof(*res1));
-//
-//
-//    int param = *(int *)arg * rows_per_div;
-//    matmul(data, mat1, res1, -1, -1, data_ncols, matrices_columns[0]);
-//    add_vector(res1, vec1, rows_per_div, matrices_columns[0]);
-//    relu(res1, rows_per_div, matrices_columns[0]);
-//    
-//    //TODO (hacer el resto de multiplicaciones, sumas, y ReLU
-//    
-//    for (int pred = 0; pred < rows_per_div; pred++) {
-//        if (predictions[pred] == digits[start + pred])
-//            aciertos += 1;
-//    }
-//    printf("Accuracy de la parte %d: %f\n", *(int *)arg, (float)aciertos / (end - start));
-//    
-//    //TODO (escribir en fichero)
-//
-//    return 0;
-//}
+double** reservar_matriz_nxm (double** mat, int n, int m)
+{
+    /*
+        Dado un double** donde se pretende crear la matriz y sus dimensiones nxm (filas x columnas)
+        reserva (malloc) suficiente espacio como para llenarla de doubles
+    */
+
+    mat = malloc(n * sizeof(double));
+    for (int i = 0; i < n; i++) mat[i] = malloc(m * sizeof(double));
+    return mat;
+}
+
+
+int perform_multiplications(void* arg) {
+
+    /*
+     * Dado el apuntador a un índice de iteración, esta función lleva a cabo el proceso de multiplicación, suma, y aplicación de ReLU
+     * al intervalo de filas de la matriz de datos que le corresponda, y escribirá el resultado en un fichero
+     */
+
+
+    int param = *(int *)arg * rows_per_div; //Indica la primera fila del tramo de filas a utilizar
+
+    double** res1 = reservar_matriz_nxm(res1, rows_per_div, matrices_columns[0]);
+    matmul(data, mat1, res1, param, param + rows_per_div, matrices_rows[0], vector_rows[0]);
+    add_vector(res1, vec1, rows_per_div, vector_rows[0]);
+    relu(res1, rows_per_div, matrices_columns[0]);
+
+    double** res2 = reservar_matriz_nxm(res2, rows_per_div, matrices_columns[1]);
+    matmul(res1, mat2, res2, 0, rows_per_div, matrices_rows[1], vector_rows[1]);
+    add_vector(res2, vec2, rows_per_div, vector_rows[1]);
+    relu(res2, rows_per_div, matrices_columns[1]);
+
+    double** res3 = reservar_matriz_nxm(res3, rows_per_div, matrices_columns[2]);
+    matmul(res2, mat3, res3, 0, rows_per_div, matrices_rows[2], vector_rows[2]);
+    add_vector(res3, vec3, rows_per_div, vector_rows[2]);
+    relu(res3, rows_per_div, matrices_columns[2]);
+
+    double** res4 = reservar_matriz_nxm(res4, rows_per_div, matrices_columns[3]);
+    matmul(res3, mat4, res4, 0, rows_per_div, matrices_rows[3], vector_rows[3]);
+    add_vector(res4, vec4, rows_per_div, vector_rows[3]);
+    //relu(res4, rows_per_div, matrices_columns[3]);
+    int* resul = (int*) malloc(rows_per_div * sizeof(int));
+    argmax(res4, rows_per_div, matrices_columns[3], resul);
+    
+    printf("\nRESULTADOS FINALES\n");
+
+    int start = param; // provisional, cambiar para multithreading
+    int aciertos = 0;
+
+    int misstreak = 0;
+
+    
+    // Calcular tasa de aciertos
+    for (int pred = 0; pred < rows_per_div; pred++) {
+        printf("pred = %d, found = %d, expected = %f\n", pred, resul[pred], digits[start + pred]);
+
+        if ((double) resul[pred] == digits[start + pred])
+        {
+            aciertos += 1;
+        //    if (misstreak != 0) printf("missed at %d, misstreak %d\n", pred, misstreak);
+            misstreak = 0;
+        }
+        //else if (misstreak != 0)
+        //{
+        //    misstreak++;
+        //}
+        //else
+        //{
+        //    printf("miss, found %d expected %f index %d\n", resul[pred], digits[pred], pred + 1);
+        //    misstreak++;
+        //}
+    }
+    printf("Accuracy de la parte %d: %f\n", *(int*)arg, (float)aciertos / (rows_per_div)); // Provisional, modificar para multithreading
+    
+    
+    //TODO (escribir en fichero)
+   
+    char* ficheroRes = malloc(sizeof(char)*strlen(pathResultados) + 20);
+    sprintf(ficheroRes, "%sprocess%d", pathResultados, *(int *)arg);
+
+    FILE* f = fopen(ficheroRes, "w");
+    for(int i=0;i<rows_per_div; i++){
+        fprintf(f, "%d\n", resul[i]);
+    }
+    fclose(f);
+    
+    return 0;
+}
 
 
 
@@ -292,6 +355,8 @@ int print(void* arg){
     printf("Hola, soy %d\n", *(int *)arg);
     sleep(10);
 }
+
+
 
 int main(int argc, char* argv[]){
     /*
@@ -315,24 +380,37 @@ int main(int argc, char* argv[]){
     data_nrows = 1000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
     load_data(my_path);
 
-    /////// PROVISIONAL
-    return 0;
+    printf("\nEMPIEZAN LOS CALCULOS\n");
+    //perform_multiplications(1);
+    /*
+        Nota: las multiplicaciones matriciales no se pueden hacer con solo 2 variables, se necesita una variable 
+              resultado en la que guardar el resultado o sale todo 0
+        Nota: Para reservar una matriz hay que reservar las filas y luego, dentro de las filas, reservar las columnas
+    */
 
+
+
+    /////// PROVISIONAL
+    
+    
     int divisions = (int)strtol(argv[1], NULL, 10);
     int aux1 = 0;
+    rows_per_div = data_nrows/divisions;
     int aux = divisions;
     int pids[aux];
     char *stack[aux];
 
     for(int i=aux1; i<aux; i++){
         stack[i] = malloc(stacksize);
-        pids[i] = clone((int (*)(void *)) &print, stack[i] + stacksize, SIGCHLD, (void *)(&i));
+        pids[i] = clone((int (*)(void *)) &perform_multiplications, stack[i] + stacksize, SIGCHLD, (void *)(&i));
         //waitpid(pids[i], NULL, 0);
     }
 
-    /*for(int i=aux1; i<aux; i++){
+    for(int i=aux1; i<aux; i++){
         waitpid(pids[i], NULL, 0);
-    }*/
+    }
+
+    
 
     return 0;
 }
