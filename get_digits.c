@@ -10,8 +10,8 @@
 double **data;
 int data_nrows;
 int data_ncols = 784;
-char *my_path = "/home/dorron/Programas/IRCSO/Datos/";  // vosotros tendréis que poner vuestro path
-char* pathResultados = "/home/dorron/Programas/IRCSO/Resultados/";
+char *my_path = "/home/dorron/01_Programas/IRCSO/Datos/";  // vosotros tendréis que poner vuestro path
+char* pathResultados = "/home/dorron/01_Programas/IRCSO/Resultados/";
 char* n_acad = "11"; // TODO 
 
 int seed = 0;
@@ -304,36 +304,7 @@ int perform_multiplications(void* arg) {
     int* resul = (int*) malloc(rows_per_div * sizeof(int));
     argmax(res4, rows_per_div, matrices_columns[3], resul);
     
-    printf("\nRESULTADOS FINALES\n");
 
-    int start = param; // provisional, cambiar para multithreading
-    int aciertos = 0;
-
-    int misstreak = 0;
-
-    
-    // Calcular tasa de aciertos
-    for (int pred = 0; pred < rows_per_div; pred++) {
-        printf("pred = %d, found = %d, expected = %f\n", pred, resul[pred], digits[start + pred]);
-
-        if ((double) resul[pred] == digits[start + pred])
-        {
-            aciertos += 1;
-        //    if (misstreak != 0) printf("missed at %d, misstreak %d\n", pred, misstreak);
-            misstreak = 0;
-        }
-        //else if (misstreak != 0)
-        //{
-        //    misstreak++;
-        //}
-        //else
-        //{
-        //    printf("miss, found %d expected %f index %d\n", resul[pred], digits[pred], pred + 1);
-        //    misstreak++;
-        //}
-    }
-    printf("Accuracy de la parte %d: %f\n", *(int*)arg, (float)aciertos / (rows_per_div)); // Provisional, modificar para multithreading
-    
     
     //TODO (escribir en fichero)
    
@@ -342,7 +313,7 @@ int perform_multiplications(void* arg) {
 
     FILE* f = fopen(ficheroRes, "w");
     for(int i=0;i<rows_per_div; i++){
-        fprintf(f, "%d\n", resul[i]);
+        fprintf(f, "%d \n", resul[i]);
     }
     fclose(f);
     
@@ -377,7 +348,7 @@ int main(int argc, char* argv[]){
 
     // Cargar todos los .csv que vamos a utilizar
     str = (char*) malloc( sizeof(char) * (strlen(my_path) + 20)); // Asignamos suficiente memoria para que quepa my_path + "nombre del archivo"
-    data_nrows = 1000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
+    data_nrows = 20000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
     load_data(my_path);
 
     printf("\nEMPIEZAN LOS CALCULOS\n");
@@ -406,11 +377,63 @@ int main(int argc, char* argv[]){
         //waitpid(pids[i], NULL, 0);
     }
 
+    //Esperamos a que finalicen todos los procesos hijo
+
+    sprintf(str, "%spredictions", pathResultados);
+    FILE* resultsFile = fopen(str, "w+");
+    unsigned char buffer[100];
+
     for(int i=aux1; i<aux; i++){
         waitpid(pids[i], NULL, 0);
+        //Copiaremos los resultados de cada proceso hijo en un fichero
+        sprintf(str, "%sprocess%d", pathResultados, i);
+        FILE* read = fopen(str, "r");
+        size_t numLeidos = fread(buffer, sizeof(char), sizeof(buffer), read);
+        while(numLeidos!=0){
+            fwrite(buffer, sizeof(char), numLeidos, resultsFile);
+            numLeidos = fread(buffer, sizeof(char), sizeof(buffer), read);
+        }
+        fclose(read);
+        //remove(str); //Elimnar resultados de los procesos paralelos.
     }
 
+
+
+    printf("\nRESULTADOS FINALES\n");
+
+    int aciertos = 0;
+    int misstreak = 0;
+
+    fseek(resultsFile, 0, SEEK_SET);
+    double resul;
+    char* buffer2 = malloc(2048);
     
+    // Calcular tasa de aciertos
+    for (int pred = 0; pred < data_nrows; pred++) {
+        fgets(buffer2, sizeof(buffer), resultsFile);
+        resul = strtod(buffer2, NULL);
+
+        //printf("pred = %d, found = %d, expected = %d\n", pred, (int)resul, (int)digits[pred]);
+
+        if (resul == digits[pred])
+        {
+            aciertos += 1;
+        //    if (misstreak != 0) printf("missed at %d, misstreak %d\n", pred, misstreak);
+            misstreak = 0;
+        }
+        //else if (misstreak != 0)
+        //{
+        //    misstreak++;
+        //}
+        //else
+        //{
+        //    printf("miss, found %d expected %f index %d\n", resul[pred], digits[pred], pred + 1);
+        //    misstreak++;
+        //}
+    }
+    printf("Accuracy: %f\n\n", (float)aciertos / (data_nrows)); // Provisional, modificar para multithreading
+
+    fclose(resultsFile);
 
     return 0;
 }
