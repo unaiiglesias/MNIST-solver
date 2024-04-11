@@ -5,14 +5,15 @@
 #include <sched.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <sys/stat.h> // crear_directorio_resultados
 #define stacksize 1048576
 
 double **data;
 int data_nrows;
 int data_ncols = 784;
-char *my_path = "/home/dorron/01_Programas/IRCSO/Datos/";  // vosotros tendréis que poner vuestro path
-char* pathResultados = "/home/dorron/01_Programas/IRCSO/Resultados/";
-char* n_acad = "11"; // TODO 
+char* my_path = "/home/unai-kubuntu/Desktop/IRCSO/ejercicios/MNIST/parameters/";  // Ruta absoluta del directorio de weights y biases (terminado en /)
+char* path_resultados; // Se asigna al crear el directorio
+char* n_acad = "11"; // Hace referencia al numero de weights y biases que se va a usar (en este caso el de acad de Iglesias)
 
 int seed = 0;
 int matrices_rows[4] = {784, 200, 100, 50};
@@ -271,6 +272,40 @@ double** reservar_matriz_nxm (double** mat, int n, int m)
     return mat;
 }
 
+/*
+    Crea (si no existe) el directorio my_path/resultados y asigna el valor a path_resultados
+
+    Como usamos ficheros para guardar los resultados de cada hilo, es conveniente hacer una carpeta en la que guardarlos y borrarlos.
+    (Por organizacion, mas que nada)
+*/
+void crear_directorio_resultados () {
+    struct stat sb;
+    char* comando;
+    char* path = malloc(sizeof(char) * (strlen(my_path) + 20) ); // Ruta del directorio que queremos crear / comprobar que ya esta creado
+    strcpy(path, my_path); strcat(path, "resultados");
+
+
+    if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode))
+    {
+        // Ya existe el directorio, podemos usarlo, no hay que hacer nada
+        ;
+    } 
+
+    else 
+    {
+        // Hay que crear el directorio
+        comando = malloc(sizeof(char) * (strlen(my_path) + 20) );
+
+        strcpy(comando, "mkdir ");
+        strcat(comando, path);
+        system(comando);
+    }
+
+    path_resultados = malloc((strlen(my_path) + 20) * sizeof(char));
+    strcpy(path_resultados, my_path);
+    strcat(path_resultados, "resultados/"); // el path_resultados tiene que acabar en /
+
+}
 
 int perform_multiplications(void* arg) {
 
@@ -304,12 +339,11 @@ int perform_multiplications(void* arg) {
     int* resul = (int*) malloc(rows_per_div * sizeof(int));
     argmax(res4, rows_per_div, matrices_columns[3], resul);
     
+    /* Ver contexto completo en main */
 
-    
-    //TODO (escribir en fichero)
-   
-    char* ficheroRes = malloc(sizeof(char)*strlen(pathResultados) + 20);
-    sprintf(ficheroRes, "%sprocess%d", pathResultados, *(int *)arg);
+    // Escribimos los resultados de este proceso en un fichero
+    char* ficheroRes = malloc(sizeof(char) * (strlen(path_resultados) + 20));
+    sprintf(ficheroRes, "%sprocess%d", path_resultados, *(int *)arg);
 
     FILE* f = fopen(ficheroRes, "w");
     for(int i=0;i<rows_per_div; i++){
@@ -319,14 +353,6 @@ int perform_multiplications(void* arg) {
     
     return 0;
 }
-
-
-
-int print(void* arg){
-    printf("Hola, soy %d\n", *(int *)arg);
-    sleep(10);
-}
-
 
 
 int main(int argc, char* argv[]){
@@ -348,45 +374,52 @@ int main(int argc, char* argv[]){
 
     // Cargar todos los .csv que vamos a utilizar
     str = (char*) malloc( sizeof(char) * (strlen(my_path) + 20)); // Asignamos suficiente memoria para que quepa my_path + "nombre del archivo"
-    data_nrows = 20000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
+    data_nrows = 60000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
     load_data(my_path);
 
     printf("\nEMPIEZAN LOS CALCULOS\n");
-    //perform_multiplications(1);
     /*
+        Notas para el desarrollo:
         Nota: las multiplicaciones matriciales no se pueden hacer con solo 2 variables, se necesita una variable 
               resultado en la que guardar el resultado o sale todo 0
         Nota: Para reservar una matriz hay que reservar las filas y luego, dentro de las filas, reservar las columnas
     */
 
+    /*
+        Contexto: Como no hemos conseguido que todos los procesos escriban sus resultados en un array del padre o algo asi hemos ideado
+                  (credito a Dorronsoro) lo siguiente: Cada proceso escribe sus resultados en un fichero en una carpeta resultados y luego
+                  desde el programa principal los leemos y combinamos en un fichero que tenga los resultados finales.
+    */
+    crear_directorio_resultados(); // los procesos escribiran sus resultados en el
 
+    // Inicializamos las variables que van a necesitar los subprocesos
+    int divisions = (int)strtol(argv[1], NULL, 10); // Numero de procesos que vamos a usar -> cuantas veces hemos de fragmentar los datos
+    rows_per_div = data_nrows / divisions; // Cuantas filas tocan por proceso
+    int pids[divisions];
+    char *stack[divisions]; // Crearemos tantos stacks como procesos necesitemos
 
-    /////// PROVISIONAL
-    
-    
-    int divisions = (int)strtol(argv[1], NULL, 10);
-    int aux1 = 0;
-    rows_per_div = data_nrows/divisions;
-    int aux = divisions;
-    int pids[aux];
-    char *stack[aux];
+    // Creamos y lanzamos los procesos
+    for(int i = 0; i < divisions; i++){
+        // Por cada proceso de los divisions procesos que vamos a tener
 
-    for(int i=aux1; i<aux; i++){
-        stack[i] = malloc(stacksize);
-        pids[i] = clone((int (*)(void *)) &perform_multiplications, stack[i] + stacksize, SIGCHLD, (void *)(&i));
-        //waitpid(pids[i], NULL, 0);
+        stack[i] = malloc(stacksize); // Reservamos el stack de este proceso
+        pids[i] = clone((int (*)(void *)) &perform_multiplications, stack[i] + stacksize, SIGCHLD, (void *)(&i)); 
+        // Lanzamos un nuevo proceso y le pasamos el i del for. Este numero lo usaremos para decirle a cada proceso que cacho
+        // de los datos le toca
     }
 
-    //Esperamos a que finalicen todos los procesos hijo
-
-    sprintf(str, "%spredictions", pathResultados);
+    // Ruta del fichero de resultados finales unificados
+    sprintf(str, "%spredictions", path_resultados);
     FILE* resultsFile = fopen(str, "w+");
-    unsigned char buffer[100];
 
-    for(int i=aux1; i<aux; i++){
+    unsigned char buffer[100]; // Buffer para leer los ficheros creados por los hijos
+
+    for(int i = 0; i < divisions; i++){
+        // esperamos a que finalice el hijo numero i
         waitpid(pids[i], NULL, 0);
-        //Copiaremos los resultados de cada proceso hijo en un fichero
-        sprintf(str, "%sprocess%d", pathResultados, i);
+
+        // Leemos los resultados del hijo y los volcamos a los resultados totales
+        sprintf(str, "%sprocess%d", path_resultados, i);
         FILE* read = fopen(str, "r");
         size_t numLeidos = fread(buffer, sizeof(char), sizeof(buffer), read);
         while(numLeidos!=0){
@@ -397,8 +430,7 @@ int main(int argc, char* argv[]){
         //remove(str); //Elimnar resultados de los procesos paralelos.
     }
 
-
-
+    // Imprimimos unos calculos sobre la precision obtenida
     printf("\nRESULTADOS FINALES\n");
 
     int aciertos = 0;
@@ -435,5 +467,6 @@ int main(int argc, char* argv[]){
 
     fclose(resultsFile);
 
+    unload_data();
     return 0;
 }
