@@ -8,7 +8,7 @@
     NOTA: Recuerda asignar las variables globales my_path y n_acad correctamente antes de ejecutar en get_digits.c
     NOTA: Asignar el nombre de la carpeta de weights y biases ↓ ↓ 
 */
-char* weights_y_biases = "parameters"; // Literalmente el nombre de la carpeta donde estan guardados los modelos (el ultimo "/esto/" de my_path)
+char* weights_y_biases = "../Datos"; // Literalmente el nombre de la carpeta donde estan guardados los modelos (el ultimo "/esto/" de my_path)
 
 int main(int argc, char* argv[]){
     if(argc != 2){

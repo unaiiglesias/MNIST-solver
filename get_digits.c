@@ -11,7 +11,7 @@
 double **data;
 int data_nrows;
 int data_ncols = 784;
-char* my_path = "/home/unai-kubuntu/Desktop/IRCSO/ejercicios/MNIST/parameters/";  // Ruta absoluta del directorio de weights y biases (terminado en /)
+char* my_path = "/home/dorron/01_Programas/IRCSO/Datos/";  // Ruta absoluta del directorio de weights y biases (terminado en /)
 char* path_resultados; // Se asigna al crear el directorio
 char* n_acad = "11"; // Hace referencia al numero de weights y biases que se va a usar (en este caso el de acad de Iglesias)
 
@@ -256,7 +256,18 @@ int unload_data(){
      * Descarga la memoria
      */
 
-    //TODO
+    free(vec1);
+    free(vec2),
+    free(vec3);
+    free(vec4);
+    free(mat1);
+    free(mat2);
+    free(mat3);
+    free(mat4);
+    free(digits);
+    free(data);
+    free(str);
+
     return 0;
 }
 
@@ -429,7 +440,7 @@ int main(int argc, char* argv[]){
         fclose(read);
         //remove(str); //Elimnar resultados de los procesos paralelos.
     }
-
+    
     // Imprimimos unos calculos sobre la precision obtenida
     printf("\nRESULTADOS FINALES\n");
 
@@ -463,6 +474,7 @@ int main(int argc, char* argv[]){
         //    misstreak++;
         //}
     }
+    free(buffer2);
     printf("Accuracy: %f\n\n", (float)aciertos / (data_nrows)); // Provisional, modificar para multithreading
 
     fclose(resultsFile);
