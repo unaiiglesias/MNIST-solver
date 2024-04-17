@@ -381,36 +381,22 @@ int main(int argc, char* argv[]){
         exit(1);
     }
 
-    // TODO
-    // Para poder cargar los archivos, se necesita el numero de acad que vamos a usar
-    //printf("Por favor, introduce el numero de acad de los archivos a cargar: ");
-    //scanf("%d", &n_acad);
-
     // Cargar todos los .csv que vamos a utilizar
     str = (char*) malloc( sizeof(char) * (strlen(my_path) + 20)); // Asignamos suficiente memoria para que quepa my_path + "nombre del archivo"
     data_nrows = 60000;  // Cantidad de datos para multiplicar: 800 para ver si va bien, 60.000 para la prueba del tiempo
     load_data(my_path);
 
     printf("\nEMPIEZAN LOS CALCULOS\n");
-    /*
-        Notas para el desarrollo:
-        Nota: las multiplicaciones matriciales no se pueden hacer con solo 2 variables, se necesita una variable 
-              resultado en la que guardar el resultado o sale todo 0
-        Nota: Para reservar una matriz hay que reservar las filas y luego, dentro de las filas, reservar las columnas
-    */
 
-    /*
-        Contexto: Como no hemos conseguido que todos los procesos escriban sus resultados en un array del padre o algo asi hemos ideado
-                  (credito a Dorronsoro) lo siguiente: Cada proceso escribe sus resultados en un fichero en una carpeta resultados y luego
-                  desde el programa principal los leemos y combinamos en un fichero que tenga los resultados finales.
-    */
-    crear_directorio_resultados(); // los procesos escribiran sus resultados en el
+    crear_directorio_resultados(); // los procesos escribiran sus resultados en el (ver contexto mas abajo ↓↓↓)
+
 
     // Inicializamos las variables que van a necesitar los subprocesos
     int divisions = (int)strtol(argv[1], NULL, 10); // Numero de procesos que vamos a usar -> cuantas veces hemos de fragmentar los datos
     rows_per_div = data_nrows / divisions; // Cuantas filas tocan por proceso
-    int pids[divisions];
+    int pids[divisions]; // identificadores de cada proceso, para luego poder esperarles a que acaben
     char *stack[divisions]; // Crearemos tantos stacks como procesos necesitemos
+
 
     // Creamos y lanzamos los procesos
     for(int i = 0; i < divisions; i++){
@@ -422,9 +408,16 @@ int main(int argc, char* argv[]){
         // de los datos le toca
     }
 
+
     // Ruta del fichero de resultados finales unificados
     sprintf(str, "%spredictions", path_resultados);
     FILE* resultsFile = fopen(str, "w+");
+
+    /*
+        Contexto: Como no hemos conseguido que todos los procesos escriban sus resultados en un array del padre o algo asi hemos ideado
+                  (credito a Dorronsoro) lo siguiente: Cada proceso escribe sus resultados en un fichero en una carpeta resultados y luego
+                  desde el programa principal los leemos y combinamos en un fichero que tenga los resultados finales.
+    */
 
     unsigned char buffer[100]; // Buffer para leer los ficheros creados por los hijos
 
@@ -441,7 +434,6 @@ int main(int argc, char* argv[]){
             numLeidos = fread(buffer, sizeof(char), sizeof(buffer), read);
         }
         fclose(read);
-        //remove(str); //Elimnar resultados de los procesos paralelos.
     }
     
     // Imprimimos unos calculos sobre la precision obtenida
@@ -450,35 +442,23 @@ int main(int argc, char* argv[]){
     int aciertos = 0;
     int misstreak = 0;
 
-    fseek(resultsFile, 0, SEEK_SET);
+    fseek(resultsFile, 0, SEEK_SET); // Acabamos de escribir, estamos en el final. Hay que volver al principio
     double resul;
-    char* buffer2 = malloc(2048);
+    char* buffer2 = malloc(2048); // buffer a secas ya estaba usado
     
     // Calcular tasa de aciertos
     for (int pred = 0; pred < data_nrows; pred++) {
+        // Leemos 1 resultado (AKA 1 fila)
         fgets(buffer2, sizeof(buffer), resultsFile);
         resul = strtod(buffer2, NULL);
-
-        //printf("pred = %d, found = %d, expected = %d\n", pred, (int)resul, (int)digits[pred]);
 
         if (resul == digits[pred])
         {
             aciertos += 1;
-        //    if (misstreak != 0) printf("missed at %d, misstreak %d\n", pred, misstreak);
-            misstreak = 0;
         }
-        //else if (misstreak != 0)
-        //{
-        //    misstreak++;
-        //}
-        //else
-        //{
-        //    printf("miss, found %d expected %f index %d\n", resul[pred], digits[pred], pred + 1);
-        //    misstreak++;
-        //}
     }
     free(buffer2);
-    printf("Accuracy: %f\n\n", (float)aciertos / (data_nrows)); // Provisional, modificar para multithreading
+    printf("Accuracy: %f %%\n\n", (float)aciertos / (data_nrows) * 100);
 
     fclose(resultsFile);
 
