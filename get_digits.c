@@ -267,6 +267,7 @@ int unload_data(){
     free(digits);
     free(data);
     free(str);
+    free(path_resultados);
 
     return 0;
 }
