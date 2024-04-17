@@ -11,7 +11,7 @@
 double **data;
 int data_nrows;
 int data_ncols = 784;
-char* my_path = "/home/dorron/01_Programas/IRCSO/Datos/";  // Ruta absoluta del directorio de weights y biases (terminado en /)
+char* my_path = "/home/unai-kubuntu/Desktop/IRCSO/ejercicios/MNIST/parameters/";  // Ruta absoluta del directorio de weights y biases (terminado en /)
 char* path_resultados; // Se asigna al crear el directorio
 char* n_acad = "11"; // Hace referencia al numero de weights y biases que se va a usar (en este caso el de acad de Iglesias)
 
@@ -36,6 +36,8 @@ int read_matrix(double** mat, char* file, int nrows, int ncols, int fac){
     /*
      * Dada una matrix (mat), un nombre de fichero (file), una cantidad de filas (nrows) y columnas (ncols), y un multiplicador (no se usa),
      * deja en mat la matriz (de dimensión nrows x ncols) de datos contenida en el fichero con nombre file
+     * 
+     * NOTA: Hace malloc por cada fila de la matriz, solo hay que pasar matriz con malloc hecho del numero de filas :matriz_pasada =  malloc(nrows * sizeof(dobule))
      */
 
     char *buffer = malloc(2048);
@@ -213,10 +215,10 @@ int load_data(char* path){
 
 
     // Cargar weights (weights[0, 1, 2, 3]_[Numero acad].csv)
-    mat1 = malloc(matrices_rows[0] * matrices_columns[0] * sizeof(double));
-    mat2 = malloc(matrices_rows[1] * matrices_columns[1] * sizeof(double));
-    mat3 = malloc(matrices_rows[2] * matrices_columns[2] * sizeof(double));
-    mat4 = malloc(matrices_rows[3] * matrices_columns[3] * sizeof(double));
+    mat1 = malloc(matrices_rows[0] * sizeof(double));
+    mat2 = malloc(matrices_rows[1] * sizeof(double));
+    mat3 = malloc(matrices_rows[2] * sizeof(double));
+    mat4 = malloc(matrices_rows[3] * sizeof(double));
 
     sprintf(str, "%sweights0_%s.csv", path, n_acad);
     read_matrix(mat1, str, matrices_rows[0], matrices_columns[0], 1);
